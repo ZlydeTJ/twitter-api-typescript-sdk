@@ -31,6 +31,7 @@ export interface RequestOptions extends Omit<RequestInit, "body"> {
   method?: string;
   max_retries?: number;
   base_url?: string;
+  rate_limit?: (rate_limit: {limit: number; remaining: number; reset: number}) => void;
 }
 
 async function fetchWithRetries(
@@ -146,6 +147,12 @@ export async function rest<T = Record<string, any>>(
   args: RequestOptions
 ): Promise<T> {
   const response = await request(args);
+  if (args.rate_limit) {
+    const reset = Number(response.headers.get("x-rate-limit-reset"));
+    const remaining = Number(response.headers.get("x-rate-limit-remaining"));
+    const limit = Number(response.headers.get("x-rate-limit-limit"));
+    args.rate_limit({reset, limit, remaining});
+  }
   return response.json();
 }
 
